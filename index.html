@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="googlebot" content="noindex, nofollow">
+<title>이슈재고 소진 트래커 · TF</title>
+<script src="data/dead_stock_tracking.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
+  :root {
+    --bg:#f5f6f8; --white:#fff; --card:#fff;
+    --border:#e5e7eb; --border2:#d1d5db;
+    --text:#111827; --text2:#374151; --text3:#6b7280; --text4:#9ca3af;
+    --opera:#6c5ce7; --opera-bg:#f0eeff; --opera-light:#e8e5ff;
+    --blue:#3b82f6; --blue-bg:#eff6ff;
+    --green:#10b981; --green-bg:#ecfdf5;
+    --yellow:#f59e0b; --yellow-bg:#fffbeb;
+    --red:#ef4444; --red-bg:#fef2f2;
+    --gray:#9ca3af; --gray-bg:#f3f4f6;
+    --radius:12px;
+    --shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  a{color:inherit;text-decoration:none}
+
+  .topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;height:58px;position:sticky;top:0;z-index:100}
+  .topbar h1{font-size:16px;font-weight:800;letter-spacing:-.3px}
+  .topbar h1 span{color:var(--text3);font-weight:500;font-size:12px;margin-left:10px}
+  .topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .btn{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--white);color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s}
+  .btn:hover{background:var(--bg);color:var(--text2)}
+  .btn-p{background:var(--opera);color:#fff;border-color:var(--opera)}
+  .btn-p:hover{opacity:.9}
+  .btn-sm{padding:4px 10px;font-size:11px}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
+
+  .main{max-width:1320px;margin:0 auto;padding:24px 32px 64px;text-align:center}
+  .main > *{text-align:left}
+  .hdr{display:flex;flex-direction:column;align-items:center;margin-bottom:20px;text-align:center}
+  .hdr h2{font-size:26px;font-weight:800;letter-spacing:-.6px;color:var(--text)}
+
+  /* KPI row (centered, balanced typography) */
+  .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px}
+  .kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:22px 20px;box-shadow:var(--shadow);text-align:center;display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:120px}
+  .kpi .lbl{font-size:13px;color:var(--text3);font-weight:600;letter-spacing:-.1px}
+  .kpi .num{font-size:30px;font-weight:800;letter-spacing:-.8px;line-height:1.1;color:var(--text)}
+  .kpi .sub{font-size:12px;color:var(--text4);font-weight:500}
+  .kpi.neg .num{color:var(--red)}
+  .kpi.pos .num{color:var(--green)}
+  .kpi.warn .num{color:var(--yellow)}
+
+  /* Section title (centered) */
+  .sec-title{font-size:14px;font-weight:700;color:var(--text2);margin:22px 0 12px;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+  .sec-title::before{content:'';width:3px;height:13px;background:var(--opera);border-radius:2px}
+  .sec-title .sub{font-weight:400;color:var(--text4);font-size:11px;margin-left:6px}
+
+  /* Plan table */
+  .plan-tbl{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:8px}
+  .plan-tbl table{width:100%;border-collapse:collapse;font-size:12px}
+  .plan-tbl th{padding:9px 8px;background:var(--gray-bg);text-align:left;font-weight:700;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px}
+  .plan-tbl td{padding:8px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+  .plan-tbl tr:last-child td{border-bottom:none}
+  .plan-tbl tr:hover td{background:#fafafa}
+  .plan-bar{position:relative;height:18px;background:var(--bg);border-radius:4px;min-width:100px;overflow:hidden}
+  .plan-bar .fill{height:100%;background:linear-gradient(90deg,var(--opera) 0%,#8b7dff 100%);transition:width .4s}
+  .plan-bar .fill.warn{background:linear-gradient(90deg,#f59e0b 0%,#fbbf24 100%)}
+  .plan-bar .fill.done{background:linear-gradient(90deg,var(--green) 0%,#34d399 100%)}
+  .plan-bar .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);text-shadow:0 0 2px rgba(255,255,255,.8)}
+
+  /* Due date / D-day */
+  .dday{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+  .dday-over{background:var(--red-bg);color:#991b1b}
+  .dday-soon{background:var(--yellow-bg);color:#92400e}
+  .dday-ok{background:var(--green-bg);color:#065f46}
+  .dday-none{background:var(--gray-bg);color:var(--text4)}
+
+  input.inline-date{padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-family:inherit;font-size:11px;width:120px}
+  input.inline-owner{padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-family:inherit;font-size:11px;width:110px}
+  input.inline-date:focus,input.inline-owner:focus{outline:1px solid var(--opera);border-color:var(--opera)}
+
+  /* Team tabs */
+  .team-switcher{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;box-shadow:var(--shadow);text-align:center}
+  .team-switcher .label{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-bottom:10px;text-align:center}
+  .team-tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .team-tab{padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--white);color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:140px}
+  .team-tab:hover{background:var(--bg);border-color:var(--border2)}
+  .team-tab.active{background:var(--opera);color:#fff;border-color:var(--opera);box-shadow:0 2px 8px rgba(108,92,231,.25)}
+  .team-tab .tt-sub{font-size:10px;font-weight:500;opacity:.75}
+
+  /* Guide banner */
+  .guide{background:linear-gradient(135deg,#f0eeff 0%,#e8e5ff 100%);border:1px solid var(--opera-light);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px}
+  .guide .gh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--opera);margin-bottom:6px}
+  .guide ol{margin:0;padding-left:22px;font-size:12px;color:var(--text2);line-height:1.8}
+  .guide ol li b{color:var(--text)}
+  .guide .close-btn{float:right;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0;line-height:1}
+
+  /* Prominent SKU table */
+  .name-cell.wide{max-width:360px;white-space:normal;word-break:keep-all;font-weight:500;color:var(--text)}
+  .sku-card-hdr{font-size:11px;color:var(--text3);margin-top:2px}
+  .owner-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .owner{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+  .owner .o-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .owner .o-nm{font-size:13px;font-weight:700}
+  .owner .o-cnt{font-size:11px;color:var(--text3)}
+  .owner .o-amt{font-size:16px;font-weight:800;letter-spacing:-.4px}
+  .owner .o-est{font-size:11px;color:var(--text3);margin-top:2px}
+  .bar{height:6px;background:var(--bg);border-radius:3px;margin-top:10px;overflow:hidden}
+  .bar .fill{height:100%;background:var(--opera);transition:width .3s}
+  .bar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+
+  /* Filter */
+  .toolbar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:var(--shadow)}
+  .toolbar select,.toolbar input{padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;background:var(--white);color:var(--text2)}
+  .toolbar input[type=search]{min-width:220px}
+  .toolbar .spacer{flex:1}
+
+  /* Table */
+  .tbl-wrap{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{padding:12px 10px;background:var(--gray-bg);text-align:left;font-weight:700;color:var(--text2);border-bottom:1px solid var(--border);font-size:11px;white-space:nowrap;position:sticky;top:0;z-index:2;letter-spacing:.3px}
+  td{padding:11px 10px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+  tr:hover td{background:#fafafa}
+  .num-cell{text-align:right;font-variant-numeric:tabular-nums}
+  .code-cell{font-family:'Consolas',monospace;font-size:11px;color:var(--text3)}
+
+  /* Combined product cell */
+  .prod-cell{line-height:1.4}
+  .prod-cell .pname{font-size:13px;font-weight:500;color:var(--text);word-break:keep-all;max-width:360px}
+  .prod-cell .pcode{font-family:'Consolas',monospace;font-size:10px;color:var(--text4);margin-top:2px;letter-spacing:.2px}
+
+  /* Combined classification cell (method + group + period) */
+  .cls-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start;min-width:120px}
+  .cls-cell .cls-method{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap}
+
+  /* Cumulative sales cell (compact) */
+  .sold-cell{min-width:130px}
+  .sold-cell .cum-qty{font-size:12px;font-weight:600;color:var(--text2)}
+  .sold-cell .cum-amt{font-size:13px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums;margin-top:2px}
+  .sold-cell .cum-empty{font-size:11px;color:var(--text4);font-style:italic}
+  .sold-cell .btn-sale{margin-top:6px;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--opera-light);background:var(--opera-bg);color:var(--opera);cursor:pointer;font-family:inherit;transition:all .15s;width:100%}
+  .sold-cell .btn-sale:hover{background:var(--opera);color:#fff}
+  .sold-cell .btn-sale .bdg{display:inline-block;background:var(--opera);color:#fff;border-radius:8px;padding:0 5px;font-size:10px;margin-left:4px}
+  .sold-cell .btn-sale:hover .bdg{background:#fff;color:var(--opera)}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal-bg.hidden{display:none}
+  .modal{background:var(--white);border-radius:14px;max-width:720px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+  .modal-hdr{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;position:sticky;top:0;background:var(--white);z-index:2}
+  .modal-hdr h3{font-size:15px;font-weight:700;line-height:1.4}
+  .modal-hdr .subtitle{font-size:11px;color:var(--text3);margin-top:3px}
+  .modal-close{background:none;border:none;font-size:22px;color:var(--text3);cursor:pointer;line-height:1;padding:0 4px}
+  .modal-close:hover{color:var(--text)}
+  .modal-body{padding:20px 22px}
+  .cum-box{background:var(--opera-bg);border:1px solid var(--opera-light);border-radius:10px;padding:14px 18px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .cum-box .cb-lbl{font-size:10px;color:var(--text3);font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+  .cum-box .cb-val{font-size:16px;font-weight:800;color:var(--opera);margin-top:2px}
+  .mod-sec-title{font-size:12px;font-weight:700;color:var(--text2);margin:14px 0 8px;display:flex;align-items:center;gap:6px}
+  .mod-sec-title::before{content:'';width:3px;height:11px;background:var(--opera);border-radius:2px}
+  .sales-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+  .sales-tbl th{padding:7px 8px;background:var(--gray-bg);text-align:left;font-weight:700;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border)}
+  .sales-tbl td{padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text2)}
+  .sales-tbl .del-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
+  .sales-tbl .del-btn:hover{opacity:.7}
+  .empty-log{padding:16px;text-align:center;color:var(--text4);font-size:12px;background:var(--bg);border-radius:8px;margin-bottom:12px}
+  .add-form{display:grid;grid-template-columns:130px 110px 130px 1fr 80px;gap:8px;align-items:center;padding:12px;background:var(--bg);border-radius:8px}
+  .add-form input{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:#fff}
+  .add-form input:focus{outline:1px solid var(--opera);border-color:var(--opera)}
+  .add-form button{padding:7px 14px;background:var(--opera);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+  .add-form button:hover{opacity:.9}
+
+  @media(max-width:700px){
+    .cum-box{grid-template-columns:1fr 1fr}
+    .add-form{grid-template-columns:1fr 1fr}
+  }
+
+  /* User identity chip */
+  .user-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;background:var(--green-bg);color:#065f46;border:1px solid #a7f3d0;cursor:pointer;font-family:inherit}
+  .user-chip:hover{background:#d1fae5}
+  .user-chip.anon{background:var(--yellow-bg);color:#92400e;border-color:#fde68a}
+
+  /* Status toggle filters */
+  .status-toggles{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding:10px 14px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow)}
+  .status-toggles .toggle-lbl{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.3px;margin-right:6px}
+  .tog{padding:5px 12px;border-radius:7px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--white);color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s}
+  .tog:hover{background:var(--bg)}
+  .tog.active{background:var(--opera);color:#fff;border-color:var(--opera)}
+  .tog.active.tog-pending{background:#9ca3af;border-color:#9ca3af}
+  .tog.active.tog-progress{background:#f59e0b;border-color:#f59e0b}
+  .tog.active.tog-sold{background:#10b981;border-color:#10b981}
+  .tog.active.tog-donated{background:#3b82f6;border-color:#3b82f6}
+  .tog.active.tog-cancel{background:#ef4444;border-color:#ef4444}
+  .tog.active.tog-overdue{background:#dc2626;border-color:#dc2626}
+
+  /* History */
+  /* Numeric alignment override — ensure th/td with .num-cell stays right-aligned */
+  .plan-tbl th.num-cell, .plan-tbl td.num-cell, .history-list th.num-cell, .history-list td.num-cell{text-align:right}
+
+  /* History collapsible */
+  .history-details{margin-top:28px}
+  .history-details summary{list-style:none;cursor:pointer;background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);font-size:13px;font-weight:700;color:var(--text2);transition:all .15s}
+  .history-details summary::-webkit-details-marker{display:none}
+  .history-details summary::before{content:'▶';font-size:10px;color:var(--text4);transition:transform .2s}
+  .history-details[open] summary::before{transform:rotate(90deg)}
+  .history-details summary:hover{background:var(--bg)}
+  .history-details summary .hd-title{margin-left:2px}
+  .history-details summary .sub{flex:1;font-weight:400;color:var(--text4);font-size:11px}
+  .history-details .history-list{margin-top:8px}
+
+  .history-list{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);max-height:400px;overflow-y:auto}
+  .history-list table{width:100%;border-collapse:collapse;font-size:12px}
+  .history-list th{padding:9px 10px;background:var(--gray-bg);text-align:left;font-weight:700;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);position:sticky;top:0}
+  .history-list td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2)}
+  .history-list .user-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--blue-bg);color:#1e40af}
+  .history-list .ts{font-size:11px;color:var(--text3);font-variant-numeric:tabular-nums}
+  .history-list .diff{font-size:11px;color:var(--text3)}
+  .history-list .diff .old{color:var(--red);text-decoration:line-through;margin-right:4px}
+  .history-list .diff .new{color:var(--green);font-weight:600}
+
+  /* Status pills */
+  .st-pending{background:var(--gray-bg);color:var(--text3)}
+  .st-progress{background:var(--yellow-bg);color:#92400e}
+  .st-sold{background:var(--green-bg);color:#065f46}
+  .st-donated{background:var(--blue-bg);color:#1e40af}
+  .st-cancel{background:var(--red-bg);color:#991b1b}
+
+  select.st-edit{border:none;background:transparent;font-size:11px;font-weight:600;padding:2px 6px;border-radius:5px;cursor:pointer;font-family:inherit}
+  select.st-edit:focus{outline:1px solid var(--opera)}
+
+  input.inline-num{width:80px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;text-align:right;font-family:inherit;font-size:11px;font-variant-numeric:tabular-nums}
+  input.inline-num:focus{outline:1px solid var(--opera);border-color:var(--opera)}
+  input.inline-note{width:140px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-family:inherit;font-size:11px}
+
+  /* Period badge */
+  .per-0{background:#fef2f2;color:#991b1b;font-weight:700;padding:1px 6px;border-radius:4px;font-size:10px}
+  .per-6{background:#fffbeb;color:#92400e;font-weight:700;padding:1px 6px;border-radius:4px;font-size:10px}
+
+  /* Owner badge */
+  .own-badge{display:inline-block;padding:5px 12px;border-radius:7px;font-size:12px;font-weight:700;white-space:nowrap;letter-spacing:-.2px}
+  .own-국내영업본부{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+  .own-해외영업본부{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+  .own-영업지원팀{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+  .own-검토제외{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb}
+
+  /* Group badge */
+  .grp-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;background:var(--opera-bg);color:var(--opera);white-space:nowrap}
+
+  @media(max-width:900px){
+    .kpi-row{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>이슈재고 소진 트래커 <span>Dead-Stock Follow-up · TF Dashboard</span></h1>
+  <div class="topbar-right">
+    <span id="lastsave" style="font-size:11px;color:var(--text4)"></span>
+    <button id="userChip" class="user-chip" onclick="setUser()" title="모든 변경 기록에 표시될 이름"></button>
+    <button class="btn" onclick="exportMySKUs()" title="현재 선택된 팀의 SKU 목록을 엑셀에서 바로 열 수 있는 CSV로 다운로드">📥 내 팀 SKU 목록 다운로드</button>
+    <button class="btn" onclick="resetTracking()" title="입력했던 진행 상태·Owner·마감일 전부 삭제">초기화</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Usage guide -->
+  <div class="guide" id="guide">
+    <button class="close-btn" onclick="document.getElementById('guide').style.display='none'">×</button>
+    <div class="gh">이 대시보드 사용법 — 3단계</div>
+    <ol>
+      <li><b>① 내 팀 선택</b> — 아래 "내 팀" 탭에서 소속(국내영업본부/해외영업본부/영업지원팀)을 클릭하면 해당 팀이 소진해야 할 SKU와 목표만 필터링됩니다.</li>
+      <li><b>② 주간 실판매 기록</b> — 하단 SKU 테이블에서 상품별로 <b>실판매 수량 / 실판매 금액</b>을 직접 입력하세요. 달성률과 상태는 자동 계산됩니다.</li>
+      <li><b>③ Owner와 마감일 지정</b> — 계획 테이블 각 행에 <b>담당자 이름 + 마감일</b>을 입력하면 상단 "스케줄 타임라인"에 D-Day 순으로 자동 정렬됩니다. 매주 TF 회의 직전 "내 팀 SKU 목록 다운로드"로 공유하세요.</li>
+    </ol>
+  </div>
+
+  <!-- Team switcher -->
+  <div class="team-switcher">
+    <div class="label">내 팀 선택</div>
+    <div class="team-tabs" id="teamTabs"></div>
+  </div>
+
+  <div class="hdr">
+    <h2 id="viewTitle">이슈재고 소진 트래킹</h2>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Method plan (aggregation only) -->
+  <div class="sec-title">소진 방법별 실적 <span class="sub">행 클릭 시 하단 SKU 목록 자동 필터</span></div>
+  <div class="plan-tbl">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:22%">소진 방법</th>
+          <th class="num-cell">SKU</th>
+          <th class="num-cell">재고금액</th>
+          <th class="num-cell">목표 회수</th>
+          <th class="num-cell">실판매</th>
+          <th style="width:22%">달성률</th>
+        </tr>
+      </thead>
+      <tbody id="methodBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Group plan (aggregation only) -->
+  <div class="sec-title">그룹(채널/부서)별 실적 <span class="sub">행 클릭 시 하단 SKU 목록 자동 필터</span></div>
+  <div class="plan-tbl">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:22%">그룹</th>
+          <th class="num-cell">SKU</th>
+          <th class="num-cell">재고금액</th>
+          <th class="num-cell">목표 회수</th>
+          <th class="num-cell">실판매</th>
+          <th style="width:22%">달성률</th>
+        </tr>
+      </thead>
+      <tbody id="groupBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Schedule timeline (SKU-level) -->
+  <div class="sec-title">SKU별 소진 스케줄 <span class="sub">담당자·마감일 지정된 SKU를 D-Day 임박 순으로 정렬 · 상태 토글 지원</span></div>
+  <div class="status-toggles" id="statusToggles">
+    <span class="toggle-lbl">상태:</span>
+    <button class="tog tog-pending active" data-st="pending">미착수</button>
+    <button class="tog tog-progress active" data-st="progress">진행중</button>
+    <button class="tog tog-sold active" data-st="sold">판매완료</button>
+    <button class="tog tog-donated active" data-st="donated">기부완료</button>
+    <button class="tog tog-cancel active" data-st="cancel">취소/폐기</button>
+    <span style="flex:1"></span>
+    <button class="tog tog-overdue" data-st="overdue" title="마감일 경과 + 판매 미완료">⚠ 지연만</button>
+  </div>
+  <div class="plan-tbl">
+    <table>
+      <thead>
+        <tr>
+          <th>상태</th>
+          <th>그룹</th>
+          <th>제품</th>
+          <th>담당자</th>
+          <th>마감일</th>
+          <th>D-Day</th>
+          <th class="num-cell">목표 회수</th>
+          <th class="num-cell">실판매</th>
+          <th style="width:16%">달성률</th>
+        </tr>
+      </thead>
+      <tbody id="scheduleBody"></tbody>
+    </table>
+  </div>
+
+  <!-- SKU filter + table -->
+  <div class="sec-title">SKU 상세 트래킹 <span class="sub" id="skuCountSub"></span></div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:8px;padding:8px 12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--opera)">
+    💡 <b>팀 담당자용</b> — 아래 SKU 하나하나가 소진해야 할 재고입니다. <b>실판매 수량·금액을 주간 단위로 입력</b>하시면 상단 달성률이 자동 갱신됩니다. 오른쪽 <b>메모 칸</b>에는 바이어명·협의 일정 등을 기록하세요.
+  </div>
+  <div class="toolbar">
+    <label style="font-size:11px;color:var(--text3);font-weight:600">소진방법</label>
+    <select id="fMethod"><option value="">전체</option></select>
+    <label style="font-size:11px;color:var(--text3);font-weight:600">그룹</label>
+    <select id="fGroup"><option value="">전체</option></select>
+    <label style="font-size:11px;color:var(--text3);font-weight:600">유통기한</label>
+    <select id="fPeriod"><option value="">전체</option><option>0~6</option><option>6~12</option></select>
+    <label style="font-size:11px;color:var(--text3);font-weight:600">상태</label>
+    <select id="fStatus">
+      <option value="">전체</option>
+      <option value="pending">미착수</option>
+      <option value="progress">진행중</option>
+      <option value="sold">판매완료</option>
+      <option value="donated">기부완료</option>
+      <option value="cancel">취소/폐기</option>
+    </select>
+    <input type="search" id="fSearch" placeholder="상품명 또는 코드 검색...">
+    <div class="spacer"></div>
+    <span id="cnt" style="font-size:11px;color:var(--text3)"></span>
+  </div>
+
+  <div class="tbl-wrap" style="max-height:72vh;overflow:auto">
+    <table>
+      <thead>
+        <tr id="skuThead"></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Change history (collapsible) -->
+  <details class="history-details" id="historyDetails">
+    <summary>
+      <span class="hd-title">최근 변경 이력</span>
+      <span class="sub" id="histCount"></span>
+      <button class="btn btn-sm" onclick="event.preventDefault(); event.stopPropagation(); clearHistory()" style="font-size:10px;padding:3px 8px">이력 초기화</button>
+    </summary>
+    <div class="history-list" id="historyList"></div>
+  </details>
+</div>
+
+<!-- Sales record modal -->
+<div class="modal-bg hidden" id="salesModal" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <h3 id="modalTitle">판매 기록</h3>
+        <div class="subtitle" id="modalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'ds-tracker-v1';
+const TEAM_KEY = 'ds-team-v1';
+const USER_KEY = 'ds-user-v1';
+const HISTORY_KEY = 'ds-history-v1';
+const SCHED_ST_KEY = 'ds-sched-st-v1';
+
+let DATA = null;
+let OVERRIDES = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let CURRENT_TEAM = localStorage.getItem(TEAM_KEY) || '';
+let CURRENT_USER = localStorage.getItem(USER_KEY) || '';
+let HISTORY = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+let SCHED_FILTER = JSON.parse(localStorage.getItem(SCHED_ST_KEY) || '{"pending":true,"progress":true,"sold":true,"donated":true,"cancel":true,"overdue":false}');
+
+const TEAM_INFO = {
+  '': {nm:'전체', desc:'모든 영업주체 통합 보기'},
+  '국내영업본부': {nm:'국내영업본부', desc:'자사몰/외부몰/공구 소진'},
+  '해외영업본부': {nm:'해외영업본부', desc:'해외 바이어 판매 검토'},
+  '영업지원팀': {nm:'영업지원팀', desc:'도매판매 + 기부'},
+};
+
+const fmtWon = n => n == null || isNaN(n) ? '-' : (Math.abs(n) >= 1e8 ? (n/1e8).toFixed(2) + '억' : Math.round(n).toLocaleString());
+const fmtNum = n => n == null ? '-' : Math.round(n).toLocaleString();
+
+function load() {
+  if (!window.__DS_DATA__) {
+    document.getElementById('tbody').innerHTML = `<tr><td colspan="11" style="padding:40px;text-align:center;color:var(--red)">데이터 스크립트 로드 실패<br><small>data/dead_stock_tracking.js 파일이 함께 있어야 합니다</small></td></tr>`;
+    return;
+  }
+  DATA = window.__DS_DATA__;
+  DATA.skus.forEach((s, i) => {
+    const ov = OVERRIDES[s.code + '|' + s.method];
+    if (ov) Object.assign(s, ov);
+    // Normalize sales array + derive cumulative
+    if (!Array.isArray(s.sales)) {
+      s.sales = [];
+      // Migrate legacy single-entry sold_qty/sold_amt to sales[0]
+      if ((s.sold_qty && s.sold_qty > 0) || (s.sold_amt && s.sold_amt > 0)) {
+        s.sales.push({
+          date: new Date().toISOString().slice(0,10),
+          qty: s.sold_qty || 0,
+          amt: s.sold_amt || 0,
+          note: '(이전 기록)'
+        });
+      }
+    }
+    recomputeCum(s);
+    s._idx = i;
+  });
+  renderUserChip();
+  applyStatusToggles();
+  renderTeamTabs();
+  render();
+  renderHistory();
+  if (!CURRENT_USER) {
+    // Prompt anonymous users after 1.5s
+    setTimeout(() => {
+      if (!CURRENT_USER && confirm('변경 이력 추적을 위해 이름을 설정하시겠습니까?')) setUser();
+    }, 1500);
+  }
+}
+
+function applyStatusToggles() {
+  document.querySelectorAll('#statusToggles .tog').forEach(tg => {
+    const st = tg.dataset.st;
+    const active = st === 'overdue' ? !!SCHED_FILTER.overdue : SCHED_FILTER[st] !== false;
+    tg.classList.toggle('active', active);
+  });
+}
+
+function recomputeCum(s) {
+  s.sold_qty = (s.sales || []).reduce((a,r) => a + (+r.qty || 0), 0);
+  s.sold_amt = (s.sales || []).reduce((a,r) => a + (+r.amt || 0), 0);
+}
+
+function teamSKUs() {
+  if (!CURRENT_TEAM) return DATA.skus;
+  return DATA.skus.filter(s => s.owner === CURRENT_TEAM);
+}
+
+function filterBy(kind, key) {
+  const targetId = kind === 'method' ? 'fMethod' : 'fGroup';
+  const other = kind === 'method' ? 'fGroup' : 'fMethod';
+  document.getElementById(targetId).value = key;
+  document.getElementById(other).value = '';
+  renderTable();
+  document.querySelector('.tbl-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function populateFilterOptions() {
+  const skus = teamSKUs();
+  const methods = [...new Set(skus.map(s => s.method).filter(Boolean))].sort();
+  const groups = [...new Set(skus.map(s => s.group).filter(Boolean))].sort();
+  const mSel = document.getElementById('fMethod');
+  const gSel = document.getElementById('fGroup');
+  const prevM = mSel.value, prevG = gSel.value;
+  mSel.innerHTML = '<option value="">전체</option>' + methods.map(m => `<option ${m===prevM?'selected':''}>${m}</option>`).join('');
+  gSel.innerHTML = '<option value="">전체</option>' + groups.map(g => `<option ${g===prevG?'selected':''}>${g}</option>`).join('');
+}
+
+function renderTeamTabs() {
+  const counts = {};
+  DATA.skus.forEach(s => counts[s.owner] = (counts[s.owner] || 0) + 1);
+  counts[''] = DATA.skus.length;
+  const tabs = ['', '국내영업본부', '해외영업본부', '영업지원팀'];
+  document.getElementById('teamTabs').innerHTML = tabs.map(t => {
+    const info = TEAM_INFO[t];
+    const amt = t === '' ? 1530.7 : (t === '국내영업본부' ? 207.5 : t === '해외영업본부' ? 704.2 : 618.9);
+    return `
+      <button class="team-tab ${t === CURRENT_TEAM ? 'active' : ''}" onclick="setTeam('${t}')">
+        <span>${info.nm}</span>
+        <span class="tt-sub">${counts[t] || 0}개 SKU · ${(amt/100).toFixed(2)}억</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function setTeam(t) {
+  CURRENT_TEAM = t;
+  localStorage.setItem(TEAM_KEY, t);
+  document.getElementById('viewTitle').textContent = t ? `${t} 소진 과제` : '이슈재고 소진 트래킹 (전체)';
+  renderTeamTabs();
+  render();
+}
+
+function saveOverride(sku) {
+  OVERRIDES[sku.code + '|' + sku.method] = {
+    status: sku.status, note: sku.note,
+    person: sku.person, due_date: sku.due_date,
+    sales: sku.sales || []
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(OVERRIDES));
+  document.getElementById('lastsave').textContent = '저장됨 ' + new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+  renderKPI();
+  renderPlans();
+  renderTeamTabs();
+  renderHistory();
+  flashHighlight('methodBody');
+  flashHighlight('groupBody');
+}
+
+// ─── User identity ───
+function setUser() {
+  const name = prompt('모든 변경 이력에 표시될 이름을 입력하세요\n(예: 김과장, 정재영, 해외1팀-김PM)', CURRENT_USER || '');
+  if (name === null) return;
+  CURRENT_USER = name.trim();
+  localStorage.setItem(USER_KEY, CURRENT_USER);
+  renderUserChip();
+}
+
+function renderUserChip() {
+  const el = document.getElementById('userChip');
+  if (CURRENT_USER) {
+    el.classList.remove('anon');
+    el.innerHTML = `👤 ${CURRENT_USER}`;
+    el.title = '클릭해서 이름 변경';
+  } else {
+    el.classList.add('anon');
+    el.innerHTML = `⚠ 이름 미설정`;
+    el.title = '클릭해서 이름 설정 (변경 이력 추적용)';
+  }
+}
+
+// ─── Edit history ───
+const FIELD_LABEL = {
+  status: '상태', person: '담당자', due_date: '마감일', note: '메모',
+  sales_add: '판매기록 추가', sales_del: '판매기록 삭제'
+};
+const STATUS_LABEL = {pending:'미착수', progress:'진행중', sold:'판매완료', donated:'기부완료', cancel:'취소/폐기'};
+
+function logEdit(sku, field, oldVal, newVal) {
+  const displayOld = fmtLogVal(field, oldVal);
+  const displayNew = fmtLogVal(field, newVal);
+  if (displayOld === displayNew) return; // no real change
+  HISTORY.unshift({
+    ts: new Date().toISOString(),
+    user: CURRENT_USER || '(익명)',
+    sku_code: sku.code,
+    sku_name: sku.name,
+    field: field,
+    old: displayOld,
+    new: displayNew,
+    team: sku.owner
+  });
+  if (HISTORY.length > 500) HISTORY = HISTORY.slice(0, 500);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(HISTORY));
+}
+
+function fmtLogVal(field, v) {
+  if (v == null || v === '') return '(비어있음)';
+  if (field === 'status') return STATUS_LABEL[v] || v;
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const countEl = document.getElementById('histCount');
+  if (countEl) countEl.textContent = `총 ${HISTORY.length}건 (최근 50건 표시)`;
+  if (HISTORY.length === 0) {
+    list.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text4);font-size:12px">아직 변경 이력이 없습니다</div>`;
+    return;
+  }
+  const recent = HISTORY.slice(0, 50);
+  list.innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:130px">시각</th>
+        <th style="width:100px">사용자</th>
+        <th style="width:120px">SKU</th>
+        <th>제품</th>
+        <th style="width:80px">항목</th>
+        <th>변경</th>
+      </tr></thead>
+      <tbody>${recent.map(h => `
+        <tr>
+          <td class="ts">${formatTs(h.ts)}</td>
+          <td><span class="user-tag">${h.user}</span></td>
+          <td style="font-family:Consolas,monospace;font-size:11px;color:var(--text3)">${h.sku_code || '-'}</td>
+          <td style="font-size:11px">${(h.sku_name || '').slice(0,40)}${(h.sku_name || '').length > 40 ? '…' : ''}</td>
+          <td style="font-size:11px;font-weight:600">${FIELD_LABEL[h.field] || h.field}</td>
+          <td class="diff"><span class="old">${h.old}</span>→ <span class="new">${h.new}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
+function formatTs(iso) {
+  const d = new Date(iso);
+  const today = new Date();
+  const sameDay = d.toDateString() === today.toDateString();
+  if (sameDay) return '오늘 ' + d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+  return d.toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'}) + ' ' + d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function clearHistory() {
+  if (!confirm('변경 이력 전체를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+  HISTORY = [];
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+function flashHighlight(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.style.transition = 'background 0.15s';
+  el.style.background = 'rgba(108,92,231,.08)';
+  setTimeout(() => { el.style.background = ''; }, 300);
+}
+
+function render() {
+  renderKPI();
+  renderPlans();
+  renderTable();
+}
+
+function renderKPI() {
+  const sk = teamSKUs();
+  const amt = sk.reduce((a,s) => a + s.amt, 0);
+  const est = sk.reduce((a,s) => a + s.est_recovery, 0);
+  const sold = sk.reduce((a,s) => a + (s.sold_amt || 0), 0);
+  const soldCnt = sk.filter(s => s.status === 'sold' || s.status === 'donated').length;
+  const ach = est > 0 ? (sold / est * 100) : 0;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi"><div class="lbl">${CURRENT_TEAM || '전체'} 재고금액</div><div class="num">${(amt/1e8).toFixed(2)} 억</div><div class="sub">${sk.length}개 SKU</div></div>
+    <div class="kpi pos"><div class="lbl">목표 회수금액</div><div class="num">${(est/1e8).toFixed(2)} 억</div><div class="sub">${amt > 0 ? (est/amt*100).toFixed(1) : 0}% of 재고원가</div></div>
+    <div class="kpi warn"><div class="lbl">달성률</div><div class="num">${ach.toFixed(1)}%</div><div class="sub">실판매 ${(sold/1e8).toFixed(2)}억 · 완료 ${soldCnt}/${sk.length}</div></div>
+  `;
+}
+
+function ddayBadge(due) {
+  if (!due) return '<span class="dday dday-none">미정</span>';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(due); d.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff < 0) return `<span class="dday dday-over">D+${-diff}</span>`;
+  if (diff === 0) return `<span class="dday dday-soon">D-day</span>`;
+  if (diff <= 14) return `<span class="dday dday-soon">D-${diff}</span>`;
+  return `<span class="dday dday-ok">D-${diff}</span>`;
+}
+
+function autoStatus(ach, due) {
+  if (ach >= 100) return {label:'완료', cls:'st-sold'};
+  if (ach >= 50) return {label:'진행', cls:'st-progress'};
+  if (due) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(due); d.setHours(0,0,0,0);
+    if (d < today && ach < 100) return {label:'지연', cls:'st-cancel'};
+  }
+  return {label:'미착수', cls:'st-pending'};
+}
+
+function aggregate(keyField) {
+  const agg = {};
+  teamSKUs().forEach(s => {
+    const k = s[keyField] || '(미분류)';
+    if (!agg[k]) agg[k] = {count:0, amt:0, est:0, sold:0};
+    agg[k].count++;
+    agg[k].amt += s.amt;
+    agg[k].est += s.est_recovery;
+    agg[k].sold += (s.sold_amt || 0);
+  });
+  return Object.entries(agg).map(([k,v]) => ({key:k, ...v}))
+    .sort((a,b) => b.amt - a.amt);
+}
+
+function renderPlans() {
+  // Method aggregate (simplified — stats only)
+  const methods = aggregate('method');
+  document.getElementById('methodBody').innerHTML = methods.map(m => renderPlanRow(m, 'method')).join('');
+
+  // Group aggregate (simplified — stats only)
+  const groups = aggregate('group');
+  document.getElementById('groupBody').innerHTML = groups.map(m => renderPlanRow(m, 'group')).join('');
+
+  renderSchedule();
+}
+
+function renderPlanRow(m, kind) {
+  const ach = m.est > 0 ? (m.sold / m.est) * 100 : 0;
+  const cls = ach >= 100 ? 'done' : ach >= 50 ? '' : 'warn';
+  const safeKey = m.key.replace(/"/g,'&quot;').replace(/'/g,"\\'");
+  return `
+    <tr>
+      <td style="font-weight:600;cursor:pointer;color:var(--opera)" onclick="filterBy('${kind}','${safeKey}')" title="클릭하면 하단 SKU 목록이 자동 필터됩니다">${m.key} →</td>
+      <td class="num-cell">${m.count}</td>
+      <td class="num-cell">${fmtNum(m.amt)}</td>
+      <td class="num-cell" style="color:var(--opera);font-weight:600">${fmtNum(m.est)}</td>
+      <td class="num-cell" style="font-weight:600">${fmtNum(m.sold)}</td>
+      <td><div class="plan-bar"><div class="fill ${cls}" style="width:${Math.min(100,ach)}%"></div><div class="lbl">${ach.toFixed(1)}%</div></div></td>
+    </tr>
+  `;
+}
+
+function isOverdue(s) {
+  if (!s.due_date) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(s.due_date); d.setHours(0,0,0,0);
+  if (d >= today) return false;
+  if (s.status === 'sold' || s.status === 'donated') return false;
+  return true;
+}
+
+function renderSchedule() {
+  const all = teamSKUs().filter(s => s.due_date || s.person);
+  const onlyOverdue = SCHED_FILTER.overdue;
+
+  const filtered = all.filter(s => {
+    if (onlyOverdue) return isOverdue(s);
+    return SCHED_FILTER[s.status || 'pending'] !== false;
+  });
+  filtered.sort((a, b) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date.localeCompare(b.due_date);
+  });
+
+  const sb = document.getElementById('scheduleBody');
+  if (filtered.length === 0) {
+    sb.innerHTML = `<tr><td colspan="9" style="padding:32px;text-align:center;color:var(--text4)">${all.length === 0 ? '아직 담당자·마감일이 지정된 SKU가 없습니다.<br><small>하단 SKU 테이블에서 행별로 입력하면 자동 반영됩니다</small>' : '선택한 상태에 해당하는 SKU가 없습니다.'}</td></tr>`;
+    return;
+  }
+  sb.innerHTML = filtered.map(s => {
+    const ach = s.est_recovery > 0 ? ((s.sold_amt || 0) / s.est_recovery) * 100 : 0;
+    const cls = ach >= 100 ? 'done' : ach >= 50 ? '' : 'warn';
+    const overdue = isOverdue(s);
+    return `
+      <tr style="${overdue ? 'background:#fef2f2' : ''}">
+        <td><span class="chip st-${s.status || 'pending'}">${STATUS_LABEL[s.status] || '미착수'}</span></td>
+        <td><span class="grp-badge">${s.group || ''}</span></td>
+        <td class="prod-cell"><div class="pname">${s.name || ''}</div><div class="pcode">${s.code}</div></td>
+        <td>${s.person || '-'}</td>
+        <td style="font-variant-numeric:tabular-nums">${s.due_date || '-'}</td>
+        <td>${ddayBadge(s.due_date)}</td>
+        <td class="num-cell">${fmtNum(s.est_recovery)}</td>
+        <td class="num-cell" style="font-weight:600">${fmtNum(s.sold_amt || 0)}</td>
+        <td><div class="plan-bar"><div class="fill ${cls}" style="width:${Math.min(100,ach)}%"></div><div class="lbl">${ach.toFixed(1)}%</div></div></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Status toggle click handlers
+document.addEventListener('click', e => {
+  const tg = e.target.closest('.tog');
+  if (!tg) return;
+  const st = tg.dataset.st;
+  if (st === 'overdue') {
+    SCHED_FILTER.overdue = !SCHED_FILTER.overdue;
+    tg.classList.toggle('active');
+  } else {
+    SCHED_FILTER[st] = !SCHED_FILTER[st];
+    tg.classList.toggle('active');
+  }
+  localStorage.setItem(SCHED_ST_KEY, JSON.stringify(SCHED_FILTER));
+  renderSchedule();
+});
+
+function renderTable() {
+  populateFilterOptions();
+  renderSKUHeader();
+  const fMethod = document.getElementById('fMethod').value;
+  const fGroup = document.getElementById('fGroup').value;
+  const fPeriod = document.getElementById('fPeriod').value;
+  const fStatus = document.getElementById('fStatus').value;
+  const q = document.getElementById('fSearch').value.trim().toLowerCase();
+
+  let rows = teamSKUs().filter(s => {
+    if (fMethod && s.method !== fMethod) return false;
+    if (fGroup && s.group !== fGroup) return false;
+    if (fPeriod && s.period !== fPeriod) return false;
+    if (fStatus && s.status !== fStatus) return false;
+    if (q && !(s.name || '').toLowerCase().includes(q) && !(s.code || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const totalForTeam = teamSKUs().length;
+  document.getElementById('cnt').textContent = `${rows.length} / ${totalForTeam} 건`;
+  const skuSub = document.getElementById('skuCountSub');
+  if (skuSub) skuSub.textContent = CURRENT_TEAM ? `${CURRENT_TEAM} ${totalForTeam}개 SKU` : `전체 ${totalForTeam}개 SKU`;
+
+  const showOwner = !CURRENT_TEAM;
+  const colCount = showOwner ? 10 : 9;
+
+  const tb = document.getElementById('tbody');
+  if (rows.length === 0) {
+    tb.innerHTML = `<tr><td colspan="${colCount}" style="padding:40px;text-align:center;color:var(--text4)">조건에 맞는 SKU가 없습니다</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(s => `
+    <tr data-idx="${s._idx}">
+      ${showOwner ? `<td style="text-align:center"><span class="own-badge own-${s.owner}">${s.owner}</span></td>` : ''}
+      <td class="cls-cell">
+        <span class="cls-method">${s.method || ''}</span>
+        <span class="grp-badge">${s.group || ''}</span>
+        <span class="per-${s.period === '0~6' ? '0' : '6'}">${s.period}</span>
+      </td>
+      <td class="prod-cell">
+        <div class="pname">${s.name || ''}</div>
+        <div class="pcode">${s.code}</div>
+      </td>
+      <td class="num-cell">${fmtNum(s.qty)}</td>
+      <td class="num-cell">
+        <div style="font-size:12px;color:var(--text3);font-weight:500">${fmtNum(s.amt)}</div>
+        <div style="font-size:14px;color:var(--opera);font-weight:700;margin-top:4px;letter-spacing:-.2px">${fmtNum(s.est_recovery)}</div>
+      </td>
+      <td><input class="inline-owner" data-field="person" value="${(s.person||'').replace(/"/g,'&quot;')}" placeholder="담당자"></td>
+      <td><input class="inline-date" type="date" data-field="due_date" value="${s.due_date||''}">${s.due_date ? '<div style="margin-top:3px">' + ddayBadge(s.due_date) + '</div>' : ''}</td>
+      <td>
+        <select class="st-edit st-${s.status}" data-field="status">
+          <option value="pending" ${s.status==='pending'?'selected':''}>미착수</option>
+          <option value="progress" ${s.status==='progress'?'selected':''}>진행중</option>
+          <option value="sold" ${s.status==='sold'?'selected':''}>판매완료</option>
+          <option value="donated" ${s.status==='donated'?'selected':''}>기부완료</option>
+          <option value="cancel" ${s.status==='cancel'?'selected':''}>취소/폐기</option>
+        </select>
+      </td>
+      <td class="sold-cell">
+        ${(s.sales || []).length > 0 ? `
+          <div class="cum-qty">${fmtNum(s.sold_qty)} 개</div>
+          <div class="cum-amt">${fmtNum(s.sold_amt)} 원</div>
+        ` : `
+          <div class="cum-empty">아직 판매 기록 없음</div>
+        `}
+        <button class="btn-sale" onclick="openSalesModal(${s._idx})">+ 판매 기록${(s.sales || []).length > 0 ? `<span class="bdg">${s.sales.length}</span>` : ''}</button>
+      </td>
+      <td><input class="inline-note" type="text" value="${(s.note || '').replace(/"/g,'&quot;')}" data-field="note" placeholder="바이어/일정..."></td>
+    </tr>
+  `).join('');
+
+  tb.querySelectorAll('[data-field]').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const tr = e.target.closest('tr');
+      const idx = +tr.dataset.idx;
+      const field = e.target.dataset.field;
+      let val = e.target.value;
+      if (field === 'sold_qty' || field === 'sold_amt') val = +val || 0;
+      const sku = DATA.skus[idx];
+      const oldVal = sku[field];
+      sku[field] = val;
+      if (field === 'status') {
+        e.target.className = 'st-edit st-' + val;
+      }
+      logEdit(sku, field, oldVal, val);
+      saveOverride(sku);
+    });
+  });
+}
+
+function renderSKUHeader() {
+  const showOwner = !CURRENT_TEAM;
+  const hdr = document.getElementById('skuThead');
+  hdr.innerHTML = `
+    ${showOwner ? '<th style="width:110px;text-align:center">주체</th>' : ''}
+    <th>분류 <span style="font-weight:400;color:var(--text4);font-size:10px">(방법 / 그룹 / 기한)</span></th>
+    <th>제품</th>
+    <th class="num-cell">수량</th>
+    <th class="num-cell">재고 / 목표회수</th>
+    <th>담당자</th>
+    <th>마감일</th>
+    <th>상태</th>
+    <th>실판매</th>
+    <th>메모</th>
+  `;
+}
+
+function exportMySKUs() {
+  const hdr = ['영업주체','유통기한','소진방법','그룹(채널)','상품코드','제품명','재고수량','재고금액','목표회수','담당자','마감일','D-Day','상태','실판매수량','실판매금액','달성률%','메모'];
+  const stMap = {pending:'미착수',progress:'진행중',sold:'판매완료',donated:'기부완료',cancel:'취소/폐기'};
+  const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ddayText = due => {
+    if (!due) return '';
+    const d = new Date(due); d.setHours(0,0,0,0);
+    const diff = Math.round((d - today) / 86400000);
+    return diff < 0 ? `D+${-diff}` : diff === 0 ? 'D-day' : `D-${diff}`;
+  };
+  const lines = [hdr.join(',')];
+  teamSKUs().forEach(s => {
+    const ach = s.est_recovery > 0 ? ((s.sold_amt || 0) / s.est_recovery * 100).toFixed(1) : '0.0';
+    lines.push([
+      s.owner, s.period, s.method, s.group, s.code, s.name,
+      s.qty, s.amt, s.est_recovery,
+      s.person || '', s.due_date || '', ddayText(s.due_date),
+      stMap[s.status] || s.status,
+      s.sold_qty || 0, s.sold_amt || 0, ach, s.note || ''
+    ].map(esc).join(','));
+  });
+  const blob = new Blob(['﻿' + lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date().toISOString().slice(0,10);
+  const teamLabel = CURRENT_TEAM || '전체';
+  a.download = `이슈재고_${teamLabel}_${d}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetTracking() {
+  if (!confirm('모든 트래킹 기록(SKU별 담당자·마감일·상태·판매기록·메모)을 초기화합니다. 계속하시겠습니까?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  OVERRIDES = {};
+  DATA.skus.forEach(s => { s.status='pending'; s.sold_qty=0; s.sold_amt=0; s.note=''; s.person=''; s.due_date=''; s.sales=[]; });
+  render();
+}
+
+// ─── Sales Record Modal ───
+let _currentSalesIdx = -1;
+function openSalesModal(idx) {
+  _currentSalesIdx = idx;
+  renderSalesModal();
+  document.getElementById('salesModal').classList.remove('hidden');
+  setTimeout(() => { const dateInp = document.getElementById('saleDate'); if (dateInp) dateInp.focus(); }, 50);
+}
+
+function closeModal() {
+  document.getElementById('salesModal').classList.add('hidden');
+  _currentSalesIdx = -1;
+}
+
+function renderSalesModal() {
+  if (_currentSalesIdx < 0) return;
+  const s = DATA.skus[_currentSalesIdx];
+  const ach = s.est_recovery > 0 ? (s.sold_amt / s.est_recovery * 100) : 0;
+  document.getElementById('modalTitle').textContent = s.name || s.code;
+  document.getElementById('modalSub').innerHTML = `<span class="grp-badge">${s.group}</span> · ${s.method} · 재고 ${fmtNum(s.qty)}개 ${fmtNum(s.amt)}원 · 목표회수 ${fmtNum(s.est_recovery)}원`;
+
+  const salesRows = (s.sales || []).map((r, i) => `
+    <tr>
+      <td style="font-variant-numeric:tabular-nums">${r.date}</td>
+      <td class="num-cell">${fmtNum(r.qty)}</td>
+      <td class="num-cell" style="font-weight:600">${fmtNum(r.amt)}</td>
+      <td style="color:var(--text3)">${(r.note || '').replace(/</g,'&lt;')}</td>
+      <td><button class="del-btn" onclick="deleteSale(${i})" title="삭제">×</button></td>
+    </tr>
+  `).join('');
+
+  const today = new Date().toISOString().slice(0,10);
+
+  document.getElementById('modalBody').innerHTML = `
+    <div class="cum-box">
+      <div><div class="cb-lbl">누적 수량</div><div class="cb-val">${fmtNum(s.sold_qty)} 개</div></div>
+      <div><div class="cb-lbl">누적 금액</div><div class="cb-val">${fmtNum(s.sold_amt)} 원</div></div>
+      <div><div class="cb-lbl">달성률</div><div class="cb-val">${ach.toFixed(1)}%</div></div>
+    </div>
+
+    <div class="mod-sec-title">판매 기록 ${(s.sales || []).length}건</div>
+    ${(s.sales || []).length === 0 ? `
+      <div class="empty-log">아직 기록이 없습니다. 아래에서 추가해주세요.</div>
+    ` : `
+      <table class="sales-tbl">
+        <thead><tr>
+          <th style="width:110px">판매일</th>
+          <th class="num-cell" style="width:90px">수량</th>
+          <th class="num-cell" style="width:120px">금액(원)</th>
+          <th>메모</th>
+          <th style="width:30px"></th>
+        </tr></thead>
+        <tbody>${salesRows}</tbody>
+      </table>
+    `}
+
+    <div class="mod-sec-title">새 판매 기록 추가</div>
+    <form class="add-form" onsubmit="addSale(event); return false">
+      <input type="date" id="saleDate" value="${today}" required>
+      <input type="number" id="saleQty" placeholder="수량" min="0" required>
+      <input type="number" id="saleAmt" placeholder="금액(원)" min="0" required>
+      <input type="text" id="saleNote" placeholder="메모 (바이어/채널/비고)">
+      <button type="submit">추가</button>
+    </form>
+  `;
+}
+
+function addSale(e) {
+  if (e) e.preventDefault();
+  if (_currentSalesIdx < 0) return;
+  const s = DATA.skus[_currentSalesIdx];
+  if (!Array.isArray(s.sales)) s.sales = [];
+  const entry = {
+    date: document.getElementById('saleDate').value,
+    qty: +document.getElementById('saleQty').value || 0,
+    amt: +document.getElementById('saleAmt').value || 0,
+    note: document.getElementById('saleNote').value || ''
+  };
+  s.sales.push(entry);
+  s.sales.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+  const prevStatus = s.status;
+  recomputeCum(s);
+  if (s.sold_amt >= s.est_recovery && s.est_recovery > 0) s.status = 'sold';
+  else if (s.sold_amt > 0) s.status = 'progress';
+  logEdit(s, 'sales_add', `${(s.sales.length-1)}건`, `${entry.date} ${fmtNum(entry.qty)}개 ${fmtNum(entry.amt)}원`);
+  if (prevStatus !== s.status) logEdit(s, 'status', prevStatus, s.status);
+  saveOverride(s);
+  renderSalesModal();
+  renderTable();
+}
+
+function deleteSale(idx) {
+  if (!confirm('이 판매 기록을 삭제하시겠습니까?')) return;
+  const s = DATA.skus[_currentSalesIdx];
+  const removed = s.sales[idx];
+  s.sales.splice(idx, 1);
+  recomputeCum(s);
+  logEdit(s, 'sales_del', `${removed.date} ${fmtNum(removed.qty)}개 ${fmtNum(removed.amt)}원`, '(삭제됨)');
+  saveOverride(s);
+  renderSalesModal();
+  renderTable();
+}
+
+// Esc to close modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('salesModal').classList.contains('hidden')) {
+    closeModal();
+  }
+});
+
+
+['fMethod','fGroup','fPeriod','fStatus','fSearch'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', renderTable);
+});
+
+load();
+</script>
+</body>
+</html>
