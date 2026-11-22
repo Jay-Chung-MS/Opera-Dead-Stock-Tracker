@@ -254,6 +254,11 @@
 </style>
 </head>
 <body>
+<div id="backupBanner" style="display:none;background:#fffbeb;border-bottom:1px solid #fde68a;padding:10px 40px;text-align:center;font-size:12px;color:#92400e;font-weight:600;position:sticky;top:0;z-index:99">
+  <span class="msg"></span>
+  <button onclick="exportMySKUs()" style="margin-left:12px;padding:4px 10px;border:1px solid #92400e;background:#fff;color:#92400e;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer">지금 백업</button>
+  <button onclick="document.getElementById('backupBanner').style.display='none'" style="margin-left:6px;padding:4px 8px;border:none;background:transparent;color:#92400e;cursor:pointer;font-size:14px">×</button>
+</div>
 <div class="topbar">
   <h1>이슈재고 소진 트래커 <span>Dead-Stock Follow-up · TF Dashboard</span></h1>
   <div class="topbar-right">
@@ -422,6 +427,7 @@ const TEAM_KEY = 'ds-team-v1';
 const USER_KEY = 'ds-user-v1';
 const HISTORY_KEY = 'ds-history-v1';
 const SCHED_ST_KEY = 'ds-sched-st-v1';
+const BACKUP_KEY = 'ds-last-backup-v1';
 
 let DATA = null;
 let OVERRIDES = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -470,6 +476,7 @@ function load() {
   renderTeamTabs();
   render();
   renderHistory();
+  updateBackupBanner();
   if (!CURRENT_USER) {
     // Prompt anonymous users after 1.5s
     setTimeout(() => {
@@ -553,6 +560,7 @@ function saveOverride(sku) {
   renderPlans();
   renderTeamTabs();
   renderHistory();
+  updateBackupBanner();
   flashHighlight('methodBody');
   flashHighlight('groupBody');
 }
@@ -657,6 +665,33 @@ function clearHistory() {
   HISTORY = [];
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
+}
+
+// ─── Backup reminder ───
+function markBackup() {
+  localStorage.setItem(BACKUP_KEY, new Date().toISOString());
+  updateBackupBanner();
+}
+
+function updateBackupBanner() {
+  const banner = document.getElementById('backupBanner');
+  if (!banner) return;
+  const hasData = Object.keys(OVERRIDES).length > 0 || HISTORY.length > 0;
+  if (!hasData) { banner.style.display = 'none'; return; }
+  const last = localStorage.getItem(BACKUP_KEY);
+  const msgEl = banner.querySelector('.msg');
+  if (!last) {
+    banner.style.display = 'block';
+    msgEl.textContent = '⚠ 입력한 데이터가 있습니다. 브라우저 초기화 시 손실 방지를 위해 CSV 백업을 권장합니다.';
+    return;
+  }
+  const daysAgo = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  if (daysAgo >= 7) {
+    banner.style.display = 'block';
+    msgEl.textContent = `⚠ ${daysAgo}일째 백업하지 않았습니다. 브라우저 캐시 삭제 시 데이터 손실 위험이 있습니다.`;
+  } else {
+    banner.style.display = 'none';
+  }
 }
 
 function flashHighlight(elId) {
@@ -956,11 +991,13 @@ function exportMySKUs() {
   a.download = `이슈재고_${teamLabel}_${d}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+  markBackup();
 }
 
 function resetTracking() {
   if (!confirm('모든 트래킹 기록(SKU별 담당자·마감일·상태·판매기록·메모)을 초기화합니다. 계속하시겠습니까?')) return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(BACKUP_KEY);
   OVERRIDES = {};
   DATA.skus.forEach(s => { s.status='pending'; s.sold_qty=0; s.sold_amt=0; s.note=''; s.person=''; s.due_date=''; s.sales=[]; });
   render();
@@ -1048,8 +1085,12 @@ function addSale(e) {
   s.sales.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
   const prevStatus = s.status;
   recomputeCum(s);
-  if (s.sold_amt >= s.est_recovery && s.est_recovery > 0) s.status = 'sold';
-  else if (s.sold_amt > 0) s.status = 'progress';
+  // 수동 설정한 종결 상태(기부완료/취소/폐기)는 자동 전환에서 제외
+  const manualTerminals = ['donated', 'cancel'];
+  if (!manualTerminals.includes(s.status)) {
+    if (s.sold_amt >= s.est_recovery && s.est_recovery > 0) s.status = 'sold';
+    else if (s.sold_amt > 0) s.status = 'progress';
+  }
   logEdit(s, 'sales_add', `${(s.sales.length-1)}건`, `${entry.date} ${fmtNum(entry.qty)}개 ${fmtNum(entry.amt)}원`);
   if (prevStatus !== s.status) logEdit(s, 'status', prevStatus, s.status);
   saveOverride(s);
